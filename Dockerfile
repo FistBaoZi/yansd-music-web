@@ -7,8 +7,8 @@ WORKDIR /app
 # 复制 package.json 和 package-lock.json
 COPY package*.json ./
 
-# 安装依赖
-RUN npm ci --only=production
+# 安装依赖（包括开发依赖，构建需要）
+RUN npm ci
 
 # 复制源代码
 COPY . .
@@ -50,11 +50,11 @@ RUN chown -R nginx:nginx /usr/share/nginx/html && \
 USER nginx
 
 # 暴露端口
-EXPOSE 8080
+EXPOSE 80
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
 
 # 启动 nginx
 CMD ["nginx", "-g", "daemon off;"]
