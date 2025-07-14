@@ -27,7 +27,7 @@ jobs:
     - name: 设置 Node.js
       uses: actions/setup-node@v4
       with:
-        node-js-version: '18'
+        node-version: '18'
         cache: 'npm'
 
     - name: 安装依赖
@@ -100,46 +100,6 @@ jobs:
               - TZ=Asia/Shanghai
         \`\`\`
         
-        ### 自定义端口运行
-        \`\`\`bash
-        docker run -d \\
-          --name yansdmusic \\
-          -p 8080:80 \\
-          ${{ env.IMAGE_TAG }}
-        \`\`\`
-        
-        ## 访问地址
-        部署完成后，可通过以下地址访问：
-        - 本地访问: http://localhost
-        - 自定义端口: http://localhost:8080
-        
-        ## 镜像特性
-        - 基于 Nginx Alpine 镜像，体积小巧
-        - 支持 gzip 压缩
-        - 自动处理 SPA 路由
-        - 优化的缓存策略
-        - 多架构支持 (amd64/arm64)
-        
-        ## 环境变量
-        | 变量名 | 描述 | 默认值 |
-        |--------|------|--------|
-        | TZ | 时区设置 | Asia/Shanghai |
-        
-        EOF
-
-    - name: 上传部署说明
-      uses: actions/upload-artifact@v4
-      with:
-        name: deployment-instructions-${{ github.event.inputs.version }}
-        path: deployment-instructions.md
-
-    - name: 输出部署信息
-      run: |
-        echo "🎉 Docker 镜像构建成功！"
-        echo "📦 镜像地址: ${{ env.IMAGE_TAG }}"
-        echo "🏷️  Latest 标签: ${{ env.IMAGE_LATEST }}"
-        echo "🚀 可以使用以下命令部署："
-        echo "   docker run -d --name yansdmusic -p 80:80 ${{ env.IMAGE_TAG }}"
         ### 自定义端口运行
         \`\`\`bash
         docker run -d \\

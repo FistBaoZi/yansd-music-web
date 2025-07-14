@@ -1,8 +1,8 @@
 # 生产阶段 - 使用 Nginx
 FROM nginx:alpine
 
-# 安装 tzdata 和 wget 用于时区设置和健康检查
-RUN apk add --no-cache tzdata wget
+# 安装 wget 用于健康检查
+RUN apk add --no-cache wget
 
 # 设置时区
 ENV TZ=Asia/Shanghai
@@ -13,23 +13,8 @@ RUN rm /etc/nginx/conf.d/default.conf
 # 复制自定义 nginx 配置
 COPY nginx.conf /etc/nginx/conf.d/
 
-# 从构建阶段复制构建好的文件到 nginx 目录
+# 从构建好的文件复制到 nginx 目录
 COPY dist /usr/share/nginx/html
-
-# 创建非 root 用户
-RUN addgroup -g 1001 -S nginx && \
-    adduser -S nginx -u 1001
-
-# 设置正确的权限
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx && \
-    chown -R nginx:nginx /etc/nginx/conf.d && \
-    touch /var/run/nginx.pid && \
-    chown -R nginx:nginx /var/run/nginx.pid
-
-# 切换到非 root 用户
-USER nginx
 
 # 暴露端口
 EXPOSE 80
