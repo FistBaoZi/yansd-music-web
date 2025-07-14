@@ -13,14 +13,14 @@ RUN npm ci
 # 复制源代码
 COPY . .
 
-# 构建应用
-RUN npm run build
+# 构建应用（添加详细输出）
+RUN npm run build -- --verbose
 
 # 生产阶段 - 使用 Nginx
 FROM nginx:alpine
 
-# 安装 tzdata 用于时区设置
-RUN apk add --no-cache tzdata
+# 安装 tzdata 和 wget 用于时区设置和健康检查
+RUN apk add --no-cache tzdata wget
 
 # 设置时区
 ENV TZ=Asia/Shanghai
@@ -54,7 +54,7 @@ EXPOSE 80
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1
 
 # 启动 nginx
 CMD ["nginx", "-g", "daemon off;"]
