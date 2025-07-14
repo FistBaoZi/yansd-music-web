@@ -1,21 +1,3 @@
-# 多阶段构建 - 构建阶段
-FROM node:18-alpine AS builder
-
-# 设置工作目录
-WORKDIR /app
-
-# 复制 package.json 和 package-lock.json
-COPY package*.json ./
-
-# 安装依赖（包括开发依赖，构建需要）
-RUN npm ci
-
-# 复制源代码
-COPY . .
-
-# 构建应用（添加详细输出）
-RUN npm run build -- --verbose
-
 # 生产阶段 - 使用 Nginx
 FROM nginx:alpine
 
@@ -32,7 +14,7 @@ RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/
 
 # 从构建阶段复制构建好的文件到 nginx 目录
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY dist /usr/share/nginx/html
 
 # 创建非 root 用户
 RUN addgroup -g 1001 -S nginx && \
