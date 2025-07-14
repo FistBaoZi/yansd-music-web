@@ -48,8 +48,9 @@ jobs:
 
     - name: 构建镜像标签
       run: |
-        echo "IMAGE_TAG=${{ env.REGISTRY_GHCR }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.version }}" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
-        echo "IMAGE_LATEST=${{ env.REGISTRY_GHCR }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
+        REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        echo "IMAGE_TAG=${{ env.REGISTRY_GHCR }}/${REPO_OWNER_LOWER}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.version }}" >> $GITHUB_ENV
+        echo "IMAGE_LATEST=${{ env.REGISTRY_GHCR }}/${REPO_OWNER_LOWER}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_ENV
 
     - name: 构建并推送 Docker 镜像
       uses: docker/build-push-action@v5
