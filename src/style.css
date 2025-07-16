@@ -29,7 +29,7 @@ body {
   font-family: 'Arial', 'Microsoft YaHei', sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #333;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 h1 {
@@ -62,10 +62,10 @@ button:focus-visible {
 
 #app {
   width: 100%;
-  min-height: 100vh;
-  padding-bottom: 120px; /* 为底部播放器预留空间 */
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 @media (prefers-color-scheme: light) {
