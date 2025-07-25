@@ -782,11 +782,29 @@ export function useMusicPlayer() {
     
     // 等待下一个事件循环，确保DOM已更新
     nextTick(() => {
+      // 检查桌面版容器
       const lyricsContainer = document.querySelector('.lyrics-content')
-      const currentLyricElement = document.querySelector(`.lyric-line:nth-child(${currentLyricIndex.value + 1})`)
+      let currentLyricElement = document.querySelector(`.lyric-line:nth-child(${currentLyricIndex.value + 1})`)
       
-      if (currentLyricElement && lyricsContainer) {
-        // 获取元素相对于容器的位置
+      // 检查移动端容器
+      const mobileContainer = document.querySelector('.lyrics-content-mobile')
+      const mobileLyricElement = document.querySelector(`.lyric-line-mobile:nth-child(${currentLyricIndex.value + 1})`)
+      
+      if (mobileContainer && mobileLyricElement) {
+        // 移动端滚动逻辑
+        const elementTop = mobileLyricElement.offsetTop
+        const containerHeight = mobileContainer.clientHeight
+        
+        // 计算滚动位置，让当前歌词显示在容器中央
+        const scrollTop = elementTop - (containerHeight / 2)
+        
+        // 平滑滚动到目标位置
+        mobileContainer.scrollTo({
+          top: Math.max(0, scrollTop),
+          behavior: 'smooth'
+        })
+      } else if (currentLyricElement && lyricsContainer) {
+        // 桌面版滚动逻辑
         const elementTop = currentLyricElement.offsetTop
         const containerHeight = lyricsContainer.clientHeight
         
@@ -806,6 +824,26 @@ export function useMusicPlayer() {
       currentTime.value = time
       updateCurrentLyric()
     }
+  }
+
+  // 获取可见的歌词行（当前歌词居中）
+  const getVisibleLyrics = () => {
+    if (parsedLyrics.value.length === 0) return []
+    
+    const visibleCount = 7 // 显示7行歌词
+    const centerIndex = Math.floor(visibleCount / 2) // 中间位置索引
+    const currentIndex = currentLyricIndex.value
+    
+    // 计算开始和结束索引
+    let startIndex = Math.max(0, currentIndex - centerIndex)
+    let endIndex = Math.min(parsedLyrics.value.length, startIndex + visibleCount)
+    
+    // 如果结尾不够，向前补充
+    if (endIndex - startIndex < visibleCount) {
+      startIndex = Math.max(0, endIndex - visibleCount)
+    }
+    
+    return parsedLyrics.value.slice(startIndex, endIndex)
   }
 
   // 组件挂载时的初始化
@@ -887,6 +925,7 @@ export function useMusicPlayer() {
     loadAlbumCover,
     handleCoverError,
     loadCurrentLyrics,
-    seekToLyric
+    seekToLyric,
+    getVisibleLyrics
   }
 }

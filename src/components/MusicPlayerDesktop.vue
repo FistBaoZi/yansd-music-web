@@ -1,5 +1,11 @@
 <template>
   <div class="music-player-desktop">
+    <!-- 动态背景 -->
+    <div class="dynamic-background" v-if="currentSong && currentSongCover">
+      <img :src="currentSongCover" :alt="currentSong.album" class="background-image" />
+      <div class="background-overlay"></div>
+    </div>
+    
     <!-- 顶部搜索栏 -->
     <header class="top-bar">
       <div class="container">
@@ -51,7 +57,7 @@
       <div class="container">
         <div class="content-wrapper">
           <!-- 左侧歌曲列表 -->
-          <div class="left-panel">
+          <div class="left-panel" style="border-radius: 2%;">
             <div class="panel-header">
               <div class="header-row">
                 <div class="header-controls" v-if="currentView === 'search'">
@@ -163,10 +169,11 @@
           </div>
 
           <!-- 右侧歌曲信息和歌词 -->
-          <div class="right-panel">
+          <div class="right-panel" style="border-radius: 2%;">
             <div class="current-song" v-if="currentSong">
               <div class="album-artwork">
-                <img :src="currentSongCover" :alt="currentSong.album" @error="handleCoverError" />
+                <img :src="currentSongCover" :alt="currentSong.album" @error="handleCoverError" 
+                     :class="{ 'rotating-cover': isPlaying, 'paused': !isPlaying }" />
               </div>
               <div class="song-meta">
                 <div class="song-details">
@@ -210,55 +217,47 @@
                 </div>
               </div>
             </div>
+            
+            <!-- 播放控制器 - 移动到歌词下面 -->
+            <div class="player-controls-panel" v-if="currentSong">
+              <div class="player-info">
+                <div class="current-track">
+                  <span class="track-time">{{ formatTime(currentTime) }}</span>
+                  <span class="track-duration">{{ formatTime(duration) }}</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress" :style="{ width: progressPercentage + '%' }"></div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    :max="duration" 
+                    :value="currentTime"
+                    @input="seek"
+                    class="progress-input"
+                  />
+                </div>
+              </div>
+              <div class="player-controls">
+                <button @click="playPrevious" class="control-btn prev-btn">
+                  ◀
+                </button>
+                <button @click="togglePlayPause" class="control-btn play-btn">
+                  <svg v-if="isPlaying" viewBox="0 0 24 24" width="40" height="40" fill="currentColor">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" width="40" height="40" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </button>
+                <button @click="playNext" class="control-btn next-btn">
+                 ▶
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </main>
-
-    <!-- 底部播放器 -->
-    <footer class="player-bar" v-if="currentSong">
-      <div class="container">
-        <div class="player-content">
-          <div class="player-info">
-            <div class="current-track">
-              <span class="track-title">{{ currentSong.name }}</span>
-              <span class="track-time">{{ formatTime(currentTime) }}</span>
-              <span class="track-duration">{{ formatTime(duration) }}</span>
-            </div>
-            <div class="progress-bar">
-              <div class="progress" :style="{ width: progressPercentage + '%' }"></div>
-              <input 
-                type="range" 
-                min="0" 
-                :max="duration" 
-                :value="currentTime"
-                @input="seek"
-                class="progress-input"
-              />
-            </div>
-          </div>
-          <div class="player-controls">
-            <button @click="playPrevious" class="control-btn">⏮</button>
-            <button @click="togglePlayPause" class="control-btn play-btn">
-              {{ isPlaying ? '⏸' : '▶' }}
-            </button>
-            <button @click="playNext" class="control-btn">⏭</button>
-            <div class="volume-control">
-              <span class="volume-icon">🔊</span>
-              <input 
-                type="range" 
-                min="0" 
-                max="1" 
-                step="0.01" 
-                v-model="volume" 
-                @input="changeVolume"
-                class="volume-slider"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </footer>
 
     <!-- 加载状态 -->
     <div v-if="loading" class="loading">
@@ -295,12 +294,26 @@
 </template>
 
 <script>
-import { useMusicPlayer } from '../composables/useMusicPlayer.js'
+import { inject } from 'vue'
 
 export default {
   name: 'MusicPlayerDesktop',
-  setup() {
-    return useMusicPlayer()
+  props: {
+    sharedState: {
+      type: Object,
+      default: null
+    }
+  },
+  setup(props) {
+    // 优先使用props传递的状态，如果没有则使用inject
+    const musicPlayerState = props.sharedState || inject('musicPlayerState')
+    
+    if (!musicPlayerState) {
+      console.error('MusicPlayerDesktop: No music player state provided')
+      return {}
+    }
+    
+    return musicPlayerState
   }
 }
 </script>
@@ -320,7 +333,7 @@ export default {
   --hover-color: rgba(255, 255, 255, 0.1);
   --active-color: rgba(255, 255, 255, 0.2);
   --shadow: 0 2px 8px rgba(0,0,0,0.1);
-  --border-radius: 8px;
+  --border-radius: 16px;
 }
 
 .music-player-desktop {
@@ -329,6 +342,47 @@ export default {
   font-family: 'Arial', 'Microsoft YaHei', sans-serif;
   color: white;
   overflow: hidden;
+  position: relative;
+}
+
+/* 动态背景 */
+.dynamic-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 1.5s ease-in-out;
+}
+
+.dynamic-background {
+  opacity: 1;
+}
+
+.background-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(50px) brightness(0.4) saturate(1.2);
+  transform: scale(1.2);
+  transition: all 1.5s ease-in-out;
+}
+
+.background-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    135deg, 
+    rgba(102, 126, 234, 0.6) 0%, 
+    rgba(118, 75, 162, 0.6) 50%,
+    rgba(102, 126, 234, 0.5) 100%
+  );
+  backdrop-filter: blur(2px);
 }
 
 /* 隐藏所有滚动条轨道 */
@@ -349,13 +403,15 @@ export default {
 
 /* 顶部搜索栏 */
 .top-bar {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(15px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   padding: 1rem 0;
   height: 80px;
   display: flex;
   align-items: center;
+  position: relative;
+  z-index: 10;
 }
 
 .search-container {
@@ -375,7 +431,7 @@ export default {
   display: flex;
   align-items: center;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: var(--border-radius);
+  border-radius: 25px;
   padding: 0.5rem;
   flex: 1;
   max-width: 400px;
@@ -400,7 +456,7 @@ export default {
   color: white;
   border: none;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
+  border-radius: 20px;
   cursor: pointer;
   font-size: 1rem;
   transition: all 0.3s ease;
@@ -479,9 +535,11 @@ export default {
 
 /* 主要内容区域 */
 .main-container {
-  height: calc(100vh - 160px);
+  height: calc(100vh - 80px);
   overflow: hidden;
   padding: 1rem 0;
+  position: relative;
+  z-index: 5;
 }
 
 .content-wrapper {
@@ -494,18 +552,21 @@ export default {
 /* 左侧歌曲列表 */
 .left-panel {
   flex: 1;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: var(--border-radius);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  height: calc(100vh - 120px);
+  margin-bottom: 20px;
   overflow: hidden;
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--border-color);
-  height: 80vh;
 }
 
 .panel-header {
   background: rgba(255, 255, 255, 0.1);
   padding: 1rem 2rem;
   border-bottom: 1px solid var(--border-color);
+  border-top-left-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
 }
 
 .header-row {
@@ -627,7 +688,7 @@ export default {
 .song-list {
   overflow-y: auto;
   height: calc(100% - 60px);
-  padding: 1rem 0;
+  padding: 1rem 0 1rem 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -639,10 +700,12 @@ export default {
 .song-row {
   display: flex;
   align-items: center;
-  padding: 0.75rem 2rem;
+  padding: 0.75rem 1.5rem;
   cursor: pointer;
   transition: all 0.3s ease;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin: 0 1rem 0.5rem 1rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
 }
 
 .song-row:hover {
@@ -782,14 +845,15 @@ export default {
 /* 右侧面板 */
 .right-panel {
   width: 400px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: var(--border-radius);
-  overflow: hidden;
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--border-color);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
   flex-direction: column;
-  height: 80vh;
+  height: calc(100vh - 120px);
+  margin-bottom: 20px;
+  overflow: hidden;
 }
 
 .current-song {
@@ -797,13 +861,15 @@ export default {
   text-align: center;
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+  border-top-left-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
 }
 
 .album-artwork {
-  width: 150px;
-  height: 150px;
+  width: 75px;
+  height: 75px;
   margin: 0 auto 1rem;
-  border-radius: 12px;
+  border-radius: 50%;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0,0,0,0.3);
 }
@@ -812,6 +878,23 @@ export default {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.rotating-cover {
+  animation: rotate 10s linear infinite;
+}
+
+.paused {
+  animation-play-state: paused !important;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .song-details {
@@ -837,13 +920,125 @@ export default {
   font-size: 1rem;
 }
 
+/* 播放控制面板 */
+.player-controls-panel {
+  background: rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--border-color);
+  padding: 1rem 1.5rem;
+  flex-shrink: 0;
+  margin-top: auto;
+  border-bottom-left-radius: var(--border-radius);
+  border-bottom-right-radius: var(--border-radius);
+}
+
+.player-controls-panel .player-info {
+  margin-bottom: 1rem;
+}
+
+.player-controls-panel .current-track {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.player-controls-panel .track-time,
+.player-controls-panel .track-duration {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.player-controls-panel .progress-bar {
+  position: relative;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: visible;
+}
+
+.player-controls-panel .progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-color), #42a5f5);
+  border-radius: 6px;
+  pointer-events: none;
+  transition: width 0.1s ease;
+  min-width: 0;
+}
+
+.player-controls-panel .progress-input {
+  position: absolute;
+  top: -10px;
+  left: 0;
+  width: 100%;
+  height: 26px;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.player-controls-panel .player-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.player-controls-panel .control-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.player-controls-panel .prev-btn,
+.player-controls-panel .next-btn {
+  width: 45px;
+  height: 45px;
+}
+
+.player-controls-panel .prev-btn:hover,
+.player-controls-panel .next-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--primary-color);
+  transform: scale(1.05);
+}
+
+.player-controls-panel .play-btn {
+  background: linear-gradient(135deg, var(--primary-color), #42a5f5);
+  color: white;
+  width: 55px;
+  height: 55px;
+  box-shadow: 0 8px 20px rgba(25, 118, 210, 0.3);
+}
+
+.player-controls-panel .play-btn:hover {
+  background: linear-gradient(135deg, var(--primary-hover), #1e88e5);
+  transform: scale(1.1);
+  box-shadow: 0 12px 28px rgba(25, 118, 210, 0.4);
+}
+
+.player-controls-panel .play-btn:active {
+  transform: scale(1.05);
+}
+
 /* 歌词面板 */
 .lyrics-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 300px;
+  min-height: 0;
   position: relative;
 }
 
@@ -864,66 +1059,71 @@ export default {
 
 .parsed-lyrics {
   min-height: 100%;
-  padding-top: 40%;
-  padding-bottom: 40%;
+  padding-top: 30%;
+  padding-bottom: 30%;
 }
 
 .lyric-line {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.5rem;
-  border-radius: 8px;
+  padding: 0.4rem 1rem;
+  margin: 0 1rem 0.2rem 1rem;
+  border-radius: 15px;
   cursor: pointer;
   transition: all 0.3s ease;
-  opacity: 0.6;
+  opacity: 0.5;
   text-align: center;
 }
 
 .lyric-line:hover {
   background: var(--hover-color);
-  opacity: 1;
+  opacity: 0.8;
 }
 
 .lyric-line.current {
-  background: var(--active-color);
   opacity: 1;
-  transform: scale(1.02);
+  transform: scale(1.05);
   color: var(--primary-color);
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.15em;
 }
 
 .lyric-line.passed {
-  opacity: 0.4;
+  opacity: 0.3;
 }
 
 .lyric-line.upcoming {
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .lyric-text {
   flex: 1;
-  font-size: 1.1rem;
-  line-height: 1.6;
+  font-size: 0.95rem;
+  line-height: 1.4;
   text-align: center;
+}
+
+.lyric-line.current .lyric-text {
+  font-size: 1.1rem;
+  font-weight: 600;
 }
 
 .static-lyrics {
   min-height: 100%;
-  padding-top: 40%;
-  padding-bottom: 40%;
+  padding-top: 30%;
+  padding-bottom: 30%;
 }
 
 .lyric-line-static {
-  padding: 0.5rem 1rem;
-  margin-bottom: 0.3rem;
-  border-radius: 6px;
-  font-size: 1rem;
-  line-height: 1.6;
+  padding: 0.3rem 1rem;
+  margin-bottom: 0.2rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  line-height: 1.4;
   text-align: center;
   color: white;
-  opacity: 0.8;
+  opacity: 0.7;
   transition: opacity 0.2s;
 }
 
@@ -956,148 +1156,6 @@ export default {
 
 .load-lyrics-btn:hover {
   background: var(--primary-hover);
-}
-
-/* 底部播放器 */
-.player-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(15px);
-  border-top: 1px solid var(--border-color);
-  padding: 1rem 0;
-  z-index: 100;
-  height: 80px;
-  display: flex;
-  align-items: center;
-}
-
-.player-content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-}
-
-.player-info {
-  flex: 1;
-}
-
-.current-track {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-}
-
-.track-title {
-  color: white;
-  font-weight: 500;
-  font-size: 1rem;
-}
-
-.track-time,
-.track-duration {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
-}
-
-.progress-bar {
-  position: relative;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.progress {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: var(--primary-color);
-  border-radius: 2px;
-  pointer-events: none;
-  transition: width 0.1s ease;
-}
-
-.progress-input {
-  position: absolute;
-  top: -8px;
-  left: 0;
-  width: 100%;
-  height: 20px;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.player-controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.control-btn {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 1.2rem;
-  cursor: pointer;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-
-.control-btn:hover {
-  background: var(--hover-color);
-  color: var(--primary-color);
-}
-
-.play-btn {
-  background: var(--primary-color);
-  color: white;
-  font-size: 1rem;
-  width: 44px;
-  height: 44px;
-}
-
-.play-btn:hover {
-  background: var(--primary-hover);
-}
-
-.volume-control {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.volume-icon {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 1rem;
-}
-
-.volume-slider {
-  width: 80px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-  outline: none;
-  cursor: pointer;
-}
-
-.volume-slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  background: var(--primary-color);
-  border-radius: 50%;
-  cursor: pointer;
 }
 
 /* 加载状态 */
@@ -1137,6 +1195,8 @@ export default {
   justify-content: center;
   align-items: center;
   overflow: hidden;
+  position: relative;
+  z-index: 5;
 }
 
 .empty-state h3 {

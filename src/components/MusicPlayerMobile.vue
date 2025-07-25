@@ -189,116 +189,97 @@
     <!-- 播放器视图 -->
     <main class="main-container player-view" v-show="currentView === 'player' && currentSong">
       <div class="player-container">
-        <!-- 专辑封面 -->
-        <div class="album-cover">
-          <img :src="currentSongCover" :alt="currentSong?.album || ''" @error="handleCoverError" />
+        <!-- 专辑封面 - 缩小为1/3并设为圆形旋转 -->
+        <div class="album-cover-mobile">
+          <img 
+            :src="currentSongCover" 
+            :alt="currentSong?.album || ''" 
+            @error="handleCoverError" 
+            :class="{ 'rotating': isPlaying }"
+          />
         </div>
 
-        <!-- 歌曲信息 -->
-        <div class="song-details">
-          <h2 class="song-title">{{ currentSong?.name || '' }}</h2>
-          <p class="song-artist">{{ Array.isArray(currentSong?.artist) ? currentSong?.artist.join(', ') : (currentSong?.artist || '') }}</p>
-          <p class="song-album">{{ currentSong?.album || '' }}</p>
+        <!-- 歌词 - 当前歌词居中显示，允许滚动 -->
+        <div class="lyrics-section-mobile">
+          <div class="lyrics-content-mobile">
+            <div v-if="parsedLyrics.length > 0" class="parsed-lyrics-mobile">
+              <div class="lyrics-viewport">
+                <!-- 显示所有歌词，允许滚动查看 -->
+                <div 
+                  v-for="(line, index) in parsedLyrics"
+                  :key="index"
+                  class="lyric-line-mobile"
+                  :class="{ 
+                    'current': index === currentLyricIndex,
+                    'passed': index < currentLyricIndex,
+                    'upcoming': index > currentLyricIndex
+                  }"
+                  @click="seekToLyric(line.time)"
+                >
+                  {{ line.text }}
+                </div>
+              </div>
+            </div>
+            <div v-else-if="currentLyrics.lyric" class="static-lyrics-mobile">
+              <div 
+                v-for="(line, index) in currentLyrics.lyric.split('\n')" 
+                :key="index"
+                class="lyric-line-mobile"
+              >
+                {{ line.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim() }}
+              </div>
+            </div>
+            <div v-else class="no-lyrics-mobile">
+              <p>暂无歌词</p>
+              <button @click="loadCurrentLyrics" class="load-lyrics-btn-mobile">加载歌词</button>
+            </div>
+          </div>
         </div>
 
         <!-- 进度条 -->
-        <div class="progress-section">
-          <div class="time-display">
-            <span class="current-time">{{ formatTime(currentTime) }}</span>
-            <span class="total-time">{{ formatTime(duration) }}</span>
+        <div class="progress-section-mobile">
+          <div class="time-display-mobile">
+            <span class="current-time-mobile">{{ formatTime(currentTime) }}</span>
+            <span class="total-time-mobile">{{ formatTime(duration) }}</span>
           </div>
-          <div class="progress-bar">
-            <div class="progress" :style="{ width: progressPercentage + '%' }"></div>
+          <div class="progress-bar-mobile">
+            <div class="progress-mobile" :style="{ width: progressPercentage + '%' }"></div>
             <input 
               type="range" 
               min="0" 
               :max="duration" 
               :value="currentTime"
               @input="seek"
-              class="progress-input"
+              class="progress-input-mobile"
             />
           </div>
         </div>
 
-        <!-- 播放控制 -->
-        <div class="player-controls">
-          <button @click="playPrevious" class="control-btn">⏮️</button>
-          <button @click="togglePlayPause" class="control-btn play-btn">
-            {{ isPlaying ? '⏸️' : '▶️' }}
+        <!-- 底部播放控制 - 移除音量控制 -->
+        <div class="player-controls-mobile">
+          <button @click="playPrevious" class="control-btn-mobile">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" fill="currentColor"/>
+            </svg>
           </button>
-          <button @click="playNext" class="control-btn">⏭️</button>
-        </div>
-
-        <!-- 音量控制 -->
-        <div class="volume-section">
-          <span class="volume-icon">🔊</span>
-          <input 
-            type="range" 
-            min="0" 
-            max="1" 
-            step="0.01" 
-            v-model="volume" 
-            @input="changeVolume"
-            class="volume-slider"
-          />
-        </div>
-
-        <!-- 歌词 -->
-        <div class="lyrics-section">
-          <h3 class="lyrics-title">歌词</h3>
-          <div class="lyrics-content">
-            <div v-if="parsedLyrics.length > 0" class="parsed-lyrics">
-              <div 
-                v-for="(line, index) in parsedLyrics" 
-                :key="index"
-                class="lyric-line"
-                :class="{ 
-                  'current': index === currentLyricIndex,
-                  'passed': index < currentLyricIndex,
-                  'upcoming': index > currentLyricIndex
-                }"
-                @click="seekToLyric(line.time)"
-              >
-                {{ line.text }}
-              </div>
-            </div>
-            <div v-else-if="currentLyrics.lyric" class="static-lyrics">
-              <div 
-                v-for="(line, index) in currentLyrics.lyric.split('\n')" 
-                :key="index"
-                class="lyric-line"
-              >
-                {{ line.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim() }}
-              </div>
-            </div>
-            <div v-else class="no-lyrics">
-              <p>暂无歌词</p>
-              <button @click="loadCurrentLyrics" class="load-lyrics-btn">加载歌词</button>
-            </div>
-          </div>
+          <button @click="togglePlayPause" class="control-btn-mobile play-btn-mobile">
+            <svg v-if="!isPlaying" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="m7 4 10 6L7 16V4z" fill="currentColor"/>
+            </svg>
+            <svg v-else width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="currentColor"/>
+            </svg>
+          </button>
+          <button @click="playNext" class="control-btn-mobile">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" fill="currentColor"/>
+            </svg>
+          </button>
         </div>
       </div>
     </main>
 
-    <!-- 底部迷你播放器 -->
-    <footer class="mini-player" v-if="currentSong && currentView !== 'player'">
-      <div class="mini-progress" :style="{ width: progressPercentage + '%' }"></div>
-      <div class="mini-player-content" @click="currentView = 'player'">
-        <div class="mini-cover">
-          <img :src="currentSongCover" :alt="currentSong?.album || ''" @error="handleCoverError" />
-        </div>
-        <div class="mini-info">
-          <div class="mini-title">{{ currentSong?.name || '' }}</div>
-          <div class="mini-artist">{{ Array.isArray(currentSong?.artist) ? currentSong?.artist.join(', ') : (currentSong?.artist || '') }}</div>
-        </div>
-        <div class="mini-controls" @click.stop>
-          <button @click="togglePlayPause" class="mini-play-btn">
-            {{ isPlaying ? '⏸️' : '▶️' }}
-          </button>
-          <button @click="playNext" class="mini-next-btn">⏭️</button>
-        </div>
-      </div>
-    </footer>
+    <!-- 底部迷你播放器 - 已移除，按照用户要求不在搜索和历史页面显示 -->
 
     <!-- 加载状态 -->
     <div v-if="loading" class="loading">
@@ -311,12 +292,26 @@
 </template>
 
 <script>
-import { useMusicPlayer } from '../composables/useMusicPlayer.js'
+import { inject } from 'vue'
 
 export default {
   name: 'MusicPlayerMobile',
-  setup() {
-    return useMusicPlayer()
+  props: {
+    sharedState: {
+      type: Object,
+      default: null
+    }
+  },
+  setup(props) {
+    // 优先使用props传递的状态，如果没有则使用inject
+    const musicPlayerState = props.sharedState || inject('musicPlayerState')
+    
+    if (!musicPlayerState) {
+      console.error('MusicPlayerMobile: No music player state provided')
+      return {}
+    }
+    
+    return musicPlayerState
   }
 }
 </script>
@@ -452,6 +447,8 @@ export default {
 
 .main-container.player-view {
   padding-bottom: 0;
+  overflow: hidden; /* 播放器视图完全禁止滚动 */
+  height: calc(100vh - 120px); /* 固定高度 */
 }
 
 /* 批量操作栏 */
@@ -639,10 +636,16 @@ export default {
 
 /* 播放器视图 */
 .player-container {
-  padding: 2rem 1.5rem;
+  padding: 0.5rem 1.5rem 2rem; /* 进一步减少padding */
   text-align: center;
   max-width: 400px;
   margin: 0 auto;
+  height: 100%; /* 使用全部可用高度 */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 禁止滚动 */
+  gap: 0.3rem; /* 进一步减少间距 */
+  position: relative;
 }
 
 .album-cover {
@@ -1028,5 +1031,229 @@ export default {
 .empty-state p {
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+/* 移动端播放器优化样式 */
+.album-cover-mobile {
+  position: relative;
+  width: 80px; /* 进一步缩小封面 */
+  height: 80px;
+  margin: 0 auto 0.3rem; /* 减少边距 */
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  flex-shrink: 0;
+}
+
+.album-cover-mobile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.album-cover-mobile img.rotating {
+  animation: spin 12s linear infinite; /* 稍微放慢旋转速度 */
+}
+
+/* 移动端歌词区域 - 精确控制高度 */
+.lyrics-section-mobile {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 0.3rem 0;
+  height: auto; /* 让flex处理高度 */
+  min-height: 180px;
+  max-height: none; /* 移除最大高度限制 */
+  overflow: hidden; /* 确保不会超出 */
+}
+
+.lyrics-content-mobile {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* 改为从顶部开始 */
+  align-items: center;
+  text-align: center;
+  overflow-y: auto; /* 允许歌词区域滚动 */
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 1.5rem 0.8rem; /* 增加上下内边距 */
+  scrollbar-width: none; /* Firefox隐藏滚动条 */
+  -ms-overflow-style: none; /* IE/Edge隐藏滚动条 */
+}
+
+.lyrics-content-mobile::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera隐藏滚动条 */
+}
+
+.parsed-lyrics-mobile,
+.static-lyrics-mobile {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* 改为从顶部开始 */
+  align-items: center;
+  position: relative;
+  padding-top: 2rem; /* 在顶部添加一些空间 */
+}
+
+.lyrics-viewport {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* 改为从顶部开始 */
+  align-items: center;
+}
+
+.lyric-line-mobile {
+  padding: 0.8rem 0.5rem;
+  line-height: 0.1;
+  border-radius: 8px;
+  margin-bottom: 0.8rem;
+  transition: all 0.4s ease;
+  opacity: 0.4;
+  font-size: 0.9rem; /* 默认字体稍大一些 */
+  cursor: pointer;
+  white-space: normal; /* 允许换行 */
+  overflow: visible;
+  text-overflow: unset;
+  max-width: 95%;
+  text-align: center;
+}
+
+.lyric-line-mobile.current {
+  opacity: 1;
+  font-weight: 700;
+  font-size: 1.2rem; /* 稍微减小当前歌词字体 */
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3); /* 添加文字阴影替代背景 */
+  transform: scale(1.03);
+  margin: 1.2rem 0; /* 增加上下边距，给当前歌词更多空间 */
+}
+
+.lyric-line-mobile.passed {
+  opacity: 0.2;
+  font-size: 0.8rem; /* 已播放歌词更小 */
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.lyric-line-mobile.upcoming {
+  opacity: 0.3;
+  font-size: 0.85rem; /* 即将播放歌词稍小一点 */
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.no-lyrics-mobile {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.load-lyrics-btn-mobile {
+  background: #1976d2;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  margin-top: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.load-lyrics-btn-mobile:hover {
+  background: #1565c0;
+}
+
+/* 移动端进度条 - 更加紧凑 */
+.progress-section-mobile {
+  margin-bottom: 0.5rem; /* 减少边距 */
+  flex-shrink: 0;
+}
+
+.time-display-mobile {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.2rem; /* 减少边距 */
+  font-size: 0.75rem; /* 稍微缩小字体 */
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.progress-bar-mobile {
+  position: relative;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.progress-mobile {
+  height: 100%;
+  background: #1976d2;
+  border-radius: 2px;
+  transition: width 0.1s ease;
+}
+
+.progress-input-mobile {
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* 移动端底部播放控制 - 相对定位在容器底部 */
+.player-controls-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5rem;
+  position: relative; /* 改为相对定位 */
+  margin-top: auto; /* 推到容器底部 */
+  background: transparent;
+  backdrop-filter: none;
+  border-radius: 25px;
+  padding: 0.8rem 2rem;
+  box-shadow: none;
+  flex-shrink: 0; /* 防止收缩 */
+}
+
+.control-btn-mobile {
+  background: transparent; /* 改为透明背景 */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* 添加淡边框 */
+  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.control-btn-mobile:hover {
+  background: rgba(255, 255, 255, 0.1); /* 悬停时轻微背景 */
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: scale(1.05);
+}
+
+.play-btn-mobile {
+  width: 64px;
+  height: 64px;
+  background: rgba(25, 118, 210, 0.8) !important; /* 播放按钮保留半透明背景 */
+  border: 2px solid rgba(25, 118, 210, 0.6) !important;
+  color: white !important;
+}
+
+.play-btn-mobile:hover {
+  background: rgba(21, 101, 192, 0.9) !important;
+  border-color: rgba(21, 101, 192, 0.8) !important;
+  transform: scale(1.08);
+}
+
+.control-btn-mobile svg {
+  width: 100%;
+  height: 100%;
 }
 </style>

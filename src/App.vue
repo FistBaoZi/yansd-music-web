@@ -1,19 +1,32 @@
 <template>
   <div id="app">
-    <!-- 根据设备类型渲染不同的组件 -->
-    <MusicPlayerDesktop v-if="deviceType === 'desktop'" />
-    <MusicPlayerMobile v-else />
+    <!-- 根据设备类型渲染不同的组件，通过props传递共享状态 -->
+    <MusicPlayerDesktop 
+      v-if="deviceType === 'desktop'" 
+      :shared-state="musicPlayerState"
+    />
+    <MusicPlayerMobile 
+      v-else 
+      :shared-state="musicPlayerState"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, provide } from 'vue'
 import MusicPlayerDesktop from './components/MusicPlayerDesktop.vue'
 import MusicPlayerMobile from './components/MusicPlayerMobile.vue'
 import { getDeviceType, watchDeviceType } from './utils/deviceDetection.js'
+import { useMusicPlayer } from './composables/useMusicPlayer.js'
 
 // 设备类型检测
 const deviceType = ref(getDeviceType())
+
+// 创建全局的音乐播放器状态
+const musicPlayerState = useMusicPlayer()
+
+// 通过provide/inject向子组件提供状态
+provide('musicPlayerState', musicPlayerState)
 
 // 监听设备类型变化
 let unwatch = null
