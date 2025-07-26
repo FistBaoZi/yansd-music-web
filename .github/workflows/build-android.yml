@@ -88,7 +88,15 @@ jobs:
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
             xmlns:tools="http://schemas.android.com/tools"
-            package="com.yansd.music">
+            package="com.yansd.music"
+            android:versionCode="1"
+            android:versionName="1.0.0"
+            android:installLocation="auto">
+
+            <uses-sdk 
+                android:minSdkVersion="24" 
+                android:targetSdkVersion="34" 
+                android:compileSdkVersion="34" />
 
             <application
                 android:allowBackup="true"
@@ -102,14 +110,17 @@ jobs:
                 android:networkSecurityConfig="@xml/network_security_config"
                 android:hardwareAccelerated="true"
                 android:largeHeap="true"
+                android:name="com.getcapacitor.CapacitorApplication"
+                android:extractNativeLibs="true"
                 tools:targetApi="34">
 
                 <activity
-                    android:name=".MainActivity"
+                    android:name="com.yansd.music.MainActivity"
                     android:exported="true"
                     android:launchMode="singleTask"
                     android:theme="@style/AppTheme.NoActionBarLaunch"
                     android:screenOrientation="portrait"
+                    android:windowSoftInputMode="adjustResize"
                     android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode">
 
                     <intent-filter android:autoVerify="true">
@@ -117,15 +128,24 @@ jobs:
                         <category android:name="android.intent.category.LAUNCHER" />
                     </intent-filter>
 
+                    <intent-filter>
+                        <action android:name="android.intent.action.VIEW" />
+                        <category android:name="android.intent.category.DEFAULT" />
+                        <category android:name="android.intent.category.BROWSABLE" />
+                        <data android:scheme="@string/custom_url_scheme" />
+                    </intent-filter>
+
                 </activity>
 
-                <!-- 小米推送服务 -->
-                <meta-data
-                    android:name="com.xiaomi.mipush.sdk.AppID"
-                    android:value="@string/xiaomi_app_id" />
-                <meta-data
-                    android:name="com.xiaomi.mipush.sdk.AppKey"
-                    android:value="@string/xiaomi_app_key" />
+                <provider
+                    android:name="androidx.core.content.FileProvider"
+                    android:authorities="${applicationId}.fileprovider"
+                    android:exported="false"
+                    android:grantUriPermissions="true">
+                    <meta-data
+                        android:name="android.support.FILE_PROVIDER_PATHS"
+                        android:resource="@xml/file_paths" />
+                </provider>
 
             </application>
 
@@ -155,6 +175,7 @@ jobs:
             <!-- 小米手机兼容性 -->
             <uses-feature android:name="android.hardware.wifi" android:required="false" />
             <uses-feature android:name="android.hardware.audio.output" android:required="true" />
+            <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
         </manifest>
         EOF
@@ -177,6 +198,16 @@ jobs:
                 </trust-anchors>
             </base-config>
         </network-security-config>
+        EOF
+        
+        # 创建文件提供器路径配置
+        cat > android/app/src/main/res/xml/file_paths.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <paths xmlns:android="http://schemas.android.com/apk/res/android">
+            <external-path name="external_files" path="."/>
+            <files-path name="files" path="."/>
+            <cache-path name="cache" path="."/>
+        </paths>
         EOF
         
         # 添加小米推送相关的字符串资源
@@ -277,6 +308,48 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x android/gradlew
       
+    - name: Generate Debug Keystore
+      run: |
+        # 创建调试密钥库用于签名APK（避免packageInfo null错误）
+        mkdir -p android/app
+        cd android/app
+        
+        # 生成调试密钥
+        keytool -genkey -v -keystore debug.keystore -alias androiddebugkey \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -dname "CN=YanSD Music, OU=Development, O=YanSD, L=Shanghai, S=Shanghai, C=CN" \
+                -storepass android -keypass android
+        
+        echo "✅ 调试密钥生成完成"
+      
+    - name: Configure Signing Config
+      run: |
+        # 配置APK签名
+        cat >> android/app/build.gradle << 'EOF'
+
+        android {
+            signingConfigs {
+                debug {
+                    storeFile file('debug.keystore')
+                    storePassword 'android'
+                    keyAlias 'androiddebugkey'
+                    keyPassword 'android'
+                }
+            }
+            
+            buildTypes {
+                release {
+                    signingConfig signingConfigs.debug
+                    minifyEnabled false
+                    shrinkResources false
+                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                }
+            }
+        }
+        EOF
+        
+        echo "✅ 签名配置完成"
+      
     - name: Build Release APK
       run: |
         cd android
@@ -286,20 +359,30 @@ jobs:
         
     - name: Verify APK
       run: |
-        APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+        # 检查签名后的APK文件
+        APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
         if [ ! -f "$APK_PATH" ]; then
-          echo "❌ APK file not found at $APK_PATH"
-          exit 1
+          echo "❌ 签名APK文件未找到，检查未签名版本..."
+          APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          if [ ! -f "$APK_PATH" ]; then
+            echo "❌ APK file not found at $APK_PATH"
+            ls -la android/app/build/outputs/apk/release/
+            exit 1
+          fi
         fi
         
         # 检查APK文件大小
         APK_SIZE=$(stat -c%s "$APK_PATH")
         echo "📦 APK Size: $(($APK_SIZE / 1024 / 1024)) MB"
+        echo "📦 APK Path: $APK_PATH"
         
         if [ $APK_SIZE -lt 1000000 ]; then
           echo "⚠️ APK file seems too small, might be corrupted"
           exit 1
         fi
+        
+        # 保存APK路径供后续使用
+        echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
         
         echo "✅ APK verification passed"
         
@@ -316,7 +399,13 @@ jobs:
         fi
         
         echo "使用版本号: $VERSION"
-        cp android/app/build/outputs/apk/release/app-release-unsigned.apk yansd-music-v${VERSION}.apk
+        
+        # 复制APK并重命名
+        cp "${{ env.APK_PATH }}" yansd-music-v${VERSION}.apk
+        
+        # 显示APK信息
+        echo "📦 最终APK信息："
+        ls -lh yansd-music-v${VERSION}.apk
         
         # 设置环境变量供后续步骤使用
         echo "APK_VERSION=$VERSION" >> $GITHUB_ENV

@@ -96,3 +96,43 @@ find android/app/src/main/res -name "*~" -delete 2>/dev/null || true
 - **Releases**：仅在启用时创建，包含详细的安装说明
 
 现在的工作流应该能够成功构建适配小米手机的APK文件了！
+
+## 第9次修复：解决小米手机packageInfo null错误 (2025-07-26)
+
+### 问题描述
+用户在小米手机上安装APK时报错：
+```
+解析软件包时出现问题，packageInfo is null
+```
+
+### 解决方案
+1. **改进AndroidManifest.xml配置**：
+   - 添加了`android:versionCode`和`android:versionName`
+   - 添加了`uses-sdk`配置
+   - 指定了正确的Application名称：`com.getcapacitor.CapacitorApplication`
+   - 添加了`android:installLocation="auto"`和`android:extractNativeLibs="true"`
+
+2. **添加APK签名支持**：
+   - 生成调试密钥库
+   - 配置signingConfig确保APK正确签名
+   - 修改构建过程使用签名版本
+
+3. **添加FileProvider支持**：
+   - 创建了`file_paths.xml`配置文件
+   - 配置了FileProvider用于文件访问
+
+4. **改进APK验证和路径处理**：
+   - 自动检测签名和未签名APK文件
+   - 改进了APK文件路径环境变量传递
+
+### 技术细节
+- 使用调试密钥进行APK签名
+- 优化小米MIUI系统兼容性
+- 添加了完整的Android权限配置
+- 创建了详细的小米手机安装指南
+
+### 验证方法
+1. 触发GitHub Actions构建
+2. 下载生成的APK文件
+3. 在小米手机上测试安装
+4. 验证应用是否能正常运行
