@@ -7,5 +7,15 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5317
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      }
+    }
   }
 })

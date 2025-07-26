@@ -6,11 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android": "cap run android",
+    "android:build": "cap build android",
+    "android:sync": "cap sync android"
   },
   "dependencies": {
     "axios": "^1.10.0",
-    "vue": "^3.5.17"
+    "vue": "^3.5.17",
+    "@capacitor/core": "^5.0.0",
+    "@capacitor/android": "^5.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.0",

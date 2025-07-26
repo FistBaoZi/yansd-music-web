@@ -1,0 +1,13 @@
+{
+  "appId": "com.yansd.music",
+  "appName": "YanSD Music",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}
