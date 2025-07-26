@@ -189,49 +189,56 @@
     <!-- 播放器视图 -->
     <main class="main-container player-view" v-show="currentView === 'player' && currentSong">
       <div class="player-container">
-        <!-- 专辑封面 - 缩小为1/3并设为圆形旋转 -->
-        <div class="album-cover-mobile">
-          <img 
-            :src="currentSongCover" 
-            :alt="currentSong?.album || ''" 
-            @error="handleCoverError" 
-            :class="{ 'rotating': isPlaying }"
-          />
-        </div>
+        <!-- 封面和歌词左右布局容器 -->
+        <div class="cover-lyrics-wrapper">
+          <!-- 左侧专辑封面 -->
+          <div class="album-cover-section">
+            <div class="album-cover-mobile">
+              <img 
+                :src="currentSongCover" 
+                :alt="currentSong?.album || ''" 
+                @error="handleCoverError" 
+                :class="{ 'rotating': isPlaying }"
+              />
+            </div>
+          </div>
 
-        <!-- 歌词 - 当前歌词居中显示，允许滚动 -->
-        <div class="lyrics-section-mobile">
-          <div class="lyrics-content-mobile">
-            <div v-if="parsedLyrics.length > 0" class="parsed-lyrics-mobile">
-              <div class="lyrics-viewport">
-                <!-- 显示所有歌词，允许滚动查看 -->
-                <div 
-                  v-for="(line, index) in parsedLyrics"
-                  :key="index"
-                  class="lyric-line-mobile"
-                  :class="{ 
-                    'current': index === currentLyricIndex,
-                    'passed': index < currentLyricIndex,
-                    'upcoming': index > currentLyricIndex
-                  }"
-                  @click="seekToLyric(line.time)"
-                >
-                  {{ line.text }}
+          <!-- 右侧歌词区域 -->
+          <div class="lyrics-section-wrapper">
+            <div class="lyrics-section-mobile">
+              <div class="lyrics-content-mobile">
+                <div v-if="parsedLyrics.length > 0" class="parsed-lyrics-mobile">
+                  <div class="lyrics-viewport">
+                    <!-- 显示所有歌词，允许滚动查看 -->
+                    <div 
+                      v-for="(line, index) in parsedLyrics"
+                      :key="index"
+                      class="lyric-line-mobile"
+                      :class="{ 
+                        'current': index === currentLyricIndex,
+                        'passed': index < currentLyricIndex,
+                        'upcoming': index > currentLyricIndex
+                      }"
+                      @click="seekToLyric(line.time)"
+                    >
+                      {{ line.text }}
+                    </div>
+                  </div>
+                </div>
+                <div v-else-if="currentLyrics.lyric" class="static-lyrics-mobile">
+                  <div 
+                    v-for="(line, index) in currentLyrics.lyric.split('\n')" 
+                    :key="index"
+                    class="lyric-line-mobile"
+                  >
+                    {{ line.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim() }}
+                  </div>
+                </div>
+                <div v-else class="no-lyrics-mobile">
+                  <p>暂无歌词</p>
+                  <button @click="loadCurrentLyrics" class="load-lyrics-btn-mobile">加载歌词</button>
                 </div>
               </div>
-            </div>
-            <div v-else-if="currentLyrics.lyric" class="static-lyrics-mobile">
-              <div 
-                v-for="(line, index) in currentLyrics.lyric.split('\n')" 
-                :key="index"
-                class="lyric-line-mobile"
-              >
-                {{ line.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim() }}
-              </div>
-            </div>
-            <div v-else class="no-lyrics-mobile">
-              <p>暂无歌词</p>
-              <button @click="loadCurrentLyrics" class="load-lyrics-btn-mobile">加载歌词</button>
             </div>
           </div>
         </div>
@@ -636,16 +643,18 @@ export default {
 
 /* 播放器视图 */
 .player-container {
-  padding: 0.5rem 1.5rem 2rem; /* 进一步减少padding */
+  padding: 0.5rem 1rem 7rem;
   text-align: center;
-  max-width: 400px;
+  max-width: 100%;
+  width: 100%;
   margin: 0 auto;
-  height: 100%; /* 使用全部可用高度 */
+  height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 禁止滚动 */
-  gap: 0.3rem; /* 进一步减少间距 */
+  overflow: hidden;
+  gap: 0.8rem;
   position: relative;
+  box-sizing: border-box;
 }
 
 .album-cover {
@@ -1009,6 +1018,112 @@ export default {
   100% { transform: rotate(360deg); }
 }
 
+/* 3D歌词动画效果 */
+@keyframes glow {
+  0%, 100% { 
+    text-shadow: 
+      0 2px 6px rgba(0,0,0,0.4),
+      0 0 15px rgba(25, 118, 210, 0.3);
+  }
+  50% { 
+    text-shadow: 
+      0 2px 8px rgba(0,0,0,0.6),
+      0 0 20px rgba(25, 118, 210, 0.5),
+      0 0 25px rgba(25, 118, 210, 0.2);
+  }
+}
+
+/* 响应式适配 - 针对不同屏幕尺寸 */
+@media screen and (max-width: 360px) {
+  .cover-lyrics-wrapper {
+    gap: 0.5rem;
+    padding: 0.3rem 0;
+  }
+  
+  .album-cover-section {
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+  }
+  
+  .album-cover-mobile {
+    width: 90px;
+    height: 90px;
+  }
+  
+  .lyrics-content-mobile {
+    padding: 0.8rem 0.4rem;
+    transform: rotateY(-2deg) rotateX(0.5deg);
+  }
+  
+  .lyric-line-mobile {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.2rem;
+  }
+  
+  .lyric-line-mobile.current {
+    font-size: 0.9rem;
+  }
+}
+
+@media screen and (min-width: 361px) and (max-width: 414px) {
+  .cover-lyrics-wrapper {
+    gap: 0.8rem;
+  }
+  
+  .album-cover-section {
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+  }
+  
+  .album-cover-mobile {
+    width: 105px;
+    height: 105px;
+  }
+}
+
+@media screen and (min-width: 415px) {
+  .cover-lyrics-wrapper {
+    gap: 1.2rem;
+  }
+  
+  .album-cover-section {
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+  }
+  
+  .album-cover-mobile {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .lyric-line-mobile {
+    font-size: 0.85rem;
+  }
+  
+  .lyric-line-mobile.current {
+    font-size: 1.05rem;
+  }
+}
+
+/* 针对特定设备的兼容性修复 */
+@media screen and (device-width: 375px) and (device-height: 812px) {
+  /* iPhone X/XS 适配 */
+  .cover-lyrics-wrapper {
+    padding: 0.4rem 0;
+  }
+}
+
+@media screen and (device-width: 414px) and (device-height: 896px) {
+  /* iPhone XR/11 适配 */
+  .album-cover-mobile {
+    width: 115px;
+    height: 115px;
+  }
+}
+
 /* 空状态 */
 .empty-state {
   text-align: center;
@@ -1034,57 +1149,135 @@ export default {
 }
 
 /* 移动端播放器优化样式 */
+/* 封面和歌词的左右布局容器 */
+.cover-lyrics-wrapper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.5rem 0;
+  box-sizing: border-box;
+}
+
+/* 左侧封面区域 */
+.album-cover-section {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 130px;
+  min-width: 130px;
+  max-width: 130px;
+}
+
 .album-cover-mobile {
   position: relative;
-  width: 80px; /* 进一步缩小封面 */
-  height: 80px;
-  margin: 0 auto 0.3rem; /* 减少边距 */
+  width: 110px;
+  height: 110px;
   border-radius: 50%;
   overflow: hidden;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-  flex-shrink: 0;
+  box-shadow: 
+    0 8px 25px rgba(0,0,0,0.4),
+    0 0 0 2px rgba(255, 255, 255, 0.1),
+    0 0 0 4px rgba(25, 118, 210, 0.2);
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.album-cover-mobile:hover {
+  transform: scale(1.03);
+  box-shadow: 
+    0 12px 35px rgba(0,0,0,0.5),
+    0 0 0 2px rgba(255, 255, 255, 0.2),
+    0 0 0 4px rgba(25, 118, 210, 0.3);
 }
 
 .album-cover-mobile img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.3s ease;
+  display: block;
 }
 
 .album-cover-mobile img.rotating {
-  animation: spin 12s linear infinite; /* 稍微放慢旋转速度 */
+  animation: spin 15s linear infinite;
 }
 
-/* 移动端歌词区域 - 精确控制高度 */
-.lyrics-section-mobile {
+/* 右侧歌词区域 */
+.lyrics-section-wrapper {
   flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  margin: 0.3rem 0;
-  height: auto; /* 让flex处理高度 */
-  min-height: 180px;
-  max-height: none; /* 移除最大高度限制 */
-  overflow: hidden; /* 确保不会超出 */
+}
+
+.lyrics-section-mobile {
+  flex: 1;
+  height: 100%;
+  perspective: 800px;
+  overflow: hidden;
+  position: relative;
 }
 
 .lyrics-content-mobile {
-  flex: 1;
+  height: 100%;
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start; /* 改为从顶部开始 */
+  justify-content: flex-start;
   align-items: center;
   text-align: center;
-  overflow-y: auto; /* 允许歌词区域滚动 */
-  background: rgba(255, 255, 255, 0.02);
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  padding: 1.5rem 0.8rem; /* 增加上下内边距 */
-  scrollbar-width: none; /* Firefox隐藏滚动条 */
-  -ms-overflow-style: none; /* IE/Edge隐藏滚动条 */
+  padding: 1rem 0.6rem;
+  box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* 减少3D变换强度，提高兼容性 */
+  transform: rotateY(-2deg) rotateX(0.5deg);
+  box-shadow: 
+    inset 0 0 15px rgba(255, 255, 255, 0.1),
+    0 6px 20px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  /* 添加回退支持 */
+  -webkit-transform: rotateY(-2deg) rotateX(0.5deg);
+  -moz-transform: rotateY(-2deg) rotateX(0.5deg);
+  -ms-transform: rotateY(-2deg) rotateX(0.5deg);
+}
+
+/* 为不支持3D变换的设备提供回退 */
+@media screen and (max-device-width: 480px) and (-webkit-max-device-pixel-ratio: 1) {
+  .lyrics-content-mobile {
+    transform: none;
+    -webkit-transform: none;
+    perspective: none;
+  }
+  
+  .lyrics-section-mobile {
+    perspective: none;
+  }
+  
+  .lyric-line-mobile {
+    transform: none !important;
+  }
+  
+  .lyric-line-mobile.current {
+    transform: scale(1.02) !important;
+  }
 }
 
 .lyrics-content-mobile::-webkit-scrollbar {
-  display: none; /* Chrome/Safari/Opera隐藏滚动条 */
+  display: none;
 }
 
 .parsed-lyrics-mobile,
@@ -1092,76 +1285,100 @@ export default {
   width: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start; /* 改为从顶部开始 */
+  justify-content: flex-start;
   align-items: center;
   position: relative;
-  padding-top: 2rem; /* 在顶部添加一些空间 */
+  padding-top: 0.5rem;
 }
 
 .lyrics-viewport {
   width: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start; /* 改为从顶部开始 */
+  justify-content: flex-start;
   align-items: center;
 }
 
 .lyric-line-mobile {
-  padding: 0.8rem 0.5rem;
-  line-height: 0.1;
-  border-radius: 8px;
-  margin-bottom: 0.8rem;
-  transition: all 0.4s ease;
+  padding: 0.5rem 0.3rem;
+  line-height: 1.3;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   opacity: 0.4;
-  font-size: 0.9rem; /* 默认字体稍大一些 */
+  font-size: 0.8rem;
   cursor: pointer;
-  white-space: normal; /* 允许换行 */
-  overflow: visible;
-  text-overflow: unset;
+  white-space: normal;
+  word-wrap: break-word;
   max-width: 95%;
   text-align: center;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+}
+
+.lyric-line-mobile:hover {
+  transform: translateZ(3px) scale(1.01);
+  background: rgba(255, 255, 255, 0.06);
+  opacity: 0.7;
 }
 
 .lyric-line-mobile.current {
   opacity: 1;
   font-weight: 700;
-  font-size: 1.2rem; /* 稍微减小当前歌词字体 */
+  font-size: 1rem;
   color: #ffffff;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.3); /* 添加文字阴影替代背景 */
-  transform: scale(1.03);
-  margin: 1.2rem 0; /* 增加上下边距，给当前歌词更多空间 */
+  text-shadow: 
+    0 2px 6px rgba(0,0,0,0.4),
+    0 0 15px rgba(25, 118, 210, 0.3);
+  transform: translateZ(8px) scale(1.04);
+  margin: 0.8rem 0;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.15), rgba(25, 118, 210, 0.08));
+  border: 1px solid rgba(25, 118, 210, 0.25);
+  box-shadow: 
+    0 3px 15px rgba(25, 118, 210, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: glow 2.5s ease-in-out infinite;
 }
 
 .lyric-line-mobile.passed {
-  opacity: 0.2;
-  font-size: 0.8rem; /* 已播放歌词更小 */
+  opacity: 0.25;
+  font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.5);
+  transform: translateZ(-2px) scale(0.96);
 }
 
 .lyric-line-mobile.upcoming {
-  opacity: 0.3;
-  font-size: 0.85rem; /* 即将播放歌词稍小一点 */
+  opacity: 0.35;
+  font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.6);
+  transform: translateZ(1px) scale(0.98);
 }
 
 .no-lyrics-mobile {
   text-align: center;
   color: rgba(255, 255, 255, 0.6);
+  transform: translateZ(5px);
+  padding: 1.5rem;
 }
 
 .load-lyrics-btn-mobile {
-  background: #1976d2;
+  background: linear-gradient(135deg, #1976d2, #1565c0);
   color: white;
   border: none;
   padding: 0.5rem 1rem;
   border-radius: 20px;
   margin-top: 1rem;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 12px rgba(25, 118, 210, 0.3);
+  transform: translateZ(3px);
+  font-size: 0.85rem;
 }
 
 .load-lyrics-btn-mobile:hover {
-  background: #1565c0;
+  background: linear-gradient(135deg, #1565c0, #0d47a1);
+  transform: translateZ(5px) scale(1.02);
+  box-shadow: 0 5px 16px rgba(25, 118, 210, 0.4);
 }
 
 /* 移动端进度条 - 更加紧凑 */
