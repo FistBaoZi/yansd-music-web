@@ -27,7 +27,7 @@ jobs:
       run: |
         rm -f package-lock.json
         npm install
-        npm install @capacitor/core @capacitor/android @capacitor/cli terser
+        npm install @capacitor/core@^6.0.0 @capacitor/android@^6.0.0 @capacitor/cli@^6.0.0 terser
       
     - name: Build Web App
       run: npm run build
@@ -41,12 +41,59 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       
+    - name: Install Android Build Tools
+      run: |
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" "platforms;android-34"
+      
     - name: Initialize Capacitor
       run: |
         npx cap init "YanSD Music" "com.yansd.music" --web-dir=dist
         
     - name: Add Android Platform
       run: npx cap add android
+      
+    - name: Configure Android Manifest
+      run: |
+        # 添加网络权限和其他必要配置
+        cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            xmlns:tools="http://schemas.android.com/tools"
+            package="com.yansd.music">
+
+            <application
+                android:allowBackup="true"
+                android:icon="@mipmap/ic_launcher"
+                android:label="@string/app_name"
+                android:roundIcon="@mipmap/ic_launcher_round"
+                android:supportsRtl="true"
+                android:theme="@style/AppTheme"
+                android:usesCleartextTraffic="true"
+                android:requestLegacyExternalStorage="true"
+                tools:targetApi="28">
+
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true"
+                    android:launchMode="singleTask"
+                    android:theme="@style/AppTheme.NoActionBarLaunch">
+
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+
+                </activity>
+
+            </application>
+
+            <!-- Permissions -->
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+        </manifest>
+        EOF
       
     - name: Sync Web Assets
       run: npx cap sync android
@@ -57,9 +104,28 @@ jobs:
     - name: Build Release APK
       run: |
         cd android
-        ./gradlew assembleRelease --no-daemon --stacktrace
+        ./gradlew clean assembleRelease --no-daemon --stacktrace
       env:
         GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m -Dorg.gradle.daemon=false"
+        
+    - name: Verify APK
+      run: |
+        APK_PATH="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+        if [ ! -f "$APK_PATH" ]; then
+          echo "❌ APK file not found at $APK_PATH"
+          exit 1
+        fi
+        
+        # 检查APK文件大小
+        APK_SIZE=$(stat -c%s "$APK_PATH")
+        echo "📦 APK Size: $(($APK_SIZE / 1024 / 1024)) MB"
+        
+        if [ $APK_SIZE -lt 1000000 ]; then
+          echo "⚠️ APK file seems too small, might be corrupted"
+          exit 1
+        fi
+        
+        echo "✅ APK verification passed"
         
     - name: Rename APK
       run: |
