@@ -181,33 +181,85 @@ jobs:
         
         # 添加小米推送相关的字符串资源
         mkdir -p android/app/src/main/res/values
-        cat >> android/app/src/main/res/values/strings.xml << 'EOF'
         
-        <!-- 小米推送配置 -->
-        <string name="xiaomi_app_id">placeholder_app_id</string>
-        <string name="xiaomi_app_key">placeholder_app_key</string>
+        # 检查是否存在strings.xml，如果存在则备份并创建新的
+        if [ -f android/app/src/main/res/values/strings.xml ]; then
+          cp android/app/src/main/res/values/strings.xml android/app/src/main/res/values/strings.xml.backup
+        fi
+        
+        # 创建完整的strings.xml文件
+        cat > android/app/src/main/res/values/strings.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <string name="app_name">YanSD Music</string>
+            <string name="title_activity_main">YanSD Music</string>
+            <string name="package_name">com.yansd.music</string>
+            <string name="custom_url_scheme">com.yansd.music</string>
+            
+            <!-- 小米推送配置 -->
+            <string name="xiaomi_app_id">placeholder_app_id</string>
+            <string name="xiaomi_app_key">placeholder_app_key</string>
+        </resources>
         EOF
         
         # 配置gradle.properties以支持小米手机
-        cat >> android/gradle.properties << 'EOF'
+        echo "" >> android/gradle.properties
+        echo "# 小米手机优化配置" >> android/gradle.properties
+        echo "android.useAndroidX=true" >> android/gradle.properties
+        echo "android.enableJetifier=true" >> android/gradle.properties
+        echo "android.enableR8.fullMode=false" >> android/gradle.properties
+        echo "android.enableR8=true" >> android/gradle.properties
+        echo "" >> android/gradle.properties
+        echo "# 构建优化" >> android/gradle.properties
+        echo "org.gradle.daemon=false" >> android/gradle.properties
+        echo "org.gradle.configureondemand=false" >> android/gradle.properties
+        echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> android/gradle.properties
+        echo "" >> android/gradle.properties
+        echo "# 小米手机兼容性" >> android/gradle.properties
+        echo "android.compileSdkVersion=34" >> android/gradle.properties
+        echo "android.targetSdkVersion=34" >> android/gradle.properties
+        echo "android.minSdkVersion=24" >> android/gradle.properties
         
-        # 小米手机优化配置
-        android.useAndroidX=true
-        android.enableJetifier=true
-        android.enableR8.fullMode=false
-        android.enableR8=true
-        
-        # 构建优化
-        org.gradle.daemon=false
-        org.gradle.configureondemand=false
-        org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
-        
-        # 小米手机兼容性
-        android.compileSdkVersion=34
-        android.targetSdkVersion=34
-        android.minSdkVersion=24
-        EOF
+        # 显示创建的文件内容用于调试
+        echo "📋 检查生成的配置文件："
+        echo "--- strings.xml ---"
+        cat android/app/src/main/res/values/strings.xml
+        echo "--- network_security_config.xml ---"
+        cat android/app/src/main/res/xml/network_security_config.xml
+        echo "--- gradle.properties (尾部) ---"
+        tail -10 android/gradle.properties
       
+    - name: Validate XML Files
+      run: |
+        echo "🔍 验证XML文件格式"
+        
+        # 安装xmllint
+        sudo apt-get update && sudo apt-get install -y libxml2-utils
+        
+        # 验证 strings.xml
+        if xmllint --noout android/app/src/main/res/values/strings.xml 2>/dev/null; then
+          echo "✅ strings.xml 格式正确"
+        else
+          echo "❌ strings.xml 格式错误，尝试修复..."
+          # 创建备用的简单strings.xml
+          cat > android/app/src/main/res/values/strings.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <resources>
+            <string name="app_name">YanSD Music</string>
+            <string name="title_activity_main">YanSD Music</string>
+            <string name="package_name">com.yansd.music</string>
+            <string name="custom_url_scheme">com.yansd.music</string>
+        </resources>
+        EOF
+        fi
+        
+        # 验证 network_security_config.xml
+        if xmllint --noout android/app/src/main/res/xml/network_security_config.xml 2>/dev/null; then
+          echo "✅ network_security_config.xml 格式正确"
+        else
+          echo "❌ network_security_config.xml 格式错误"
+        fi
+        
     - name: Sync Web Assets
       run: npx cap sync android
       
