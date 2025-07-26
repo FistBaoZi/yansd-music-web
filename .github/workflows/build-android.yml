@@ -54,7 +54,7 @@ jobs:
       
     - name: Configure Android Manifest
       run: |
-        # 添加网络权限和其他必要配置
+        # 针对小米手机优化的Android配置
         cat > android/app/src/main/AndroidManifest.xml << 'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -70,29 +70,113 @@ jobs:
                 android:theme="@style/AppTheme"
                 android:usesCleartextTraffic="true"
                 android:requestLegacyExternalStorage="true"
-                tools:targetApi="28">
+                android:networkSecurityConfig="@xml/network_security_config"
+                android:hardwareAccelerated="true"
+                android:largeHeap="true"
+                tools:targetApi="34">
 
                 <activity
                     android:name=".MainActivity"
                     android:exported="true"
                     android:launchMode="singleTask"
-                    android:theme="@style/AppTheme.NoActionBarLaunch">
+                    android:theme="@style/AppTheme.NoActionBarLaunch"
+                    android:screenOrientation="portrait"
+                    android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode">
 
-                    <intent-filter>
+                    <intent-filter android:autoVerify="true">
                         <action android:name="android.intent.action.MAIN" />
                         <category android:name="android.intent.category.LAUNCHER" />
                     </intent-filter>
 
                 </activity>
 
+                <!-- 小米推送服务 -->
+                <meta-data
+                    android:name="com.xiaomi.mipush.sdk.AppID"
+                    android:value="@string/xiaomi_app_id" />
+                <meta-data
+                    android:name="com.xiaomi.mipush.sdk.AppKey"
+                    android:value="@string/xiaomi_app_key" />
+
             </application>
 
-            <!-- Permissions -->
+            <!-- 基础权限 -->
             <uses-permission android:name="android.permission.INTERNET" />
             <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
             <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+            <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+            
+            <!-- 小米手机特定权限 -->
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
+                android:maxSdkVersion="28" />
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+            <uses-permission android:name="android.permission.WAKE_LOCK" />
+            <uses-permission android:name="android.permission.VIBRATE" />
+            
+            <!-- 小米autostart权限 -->
+            <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+            <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+            
+            <!-- 音频相关权限 -->
+            <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+            
+            <!-- 网络状态权限，小米系统需要 -->
+            <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+
+            <!-- 小米手机兼容性 -->
+            <uses-feature android:name="android.hardware.wifi" android:required="false" />
+            <uses-feature android:name="android.hardware.audio.output" android:required="true" />
 
         </manifest>
+        EOF
+        
+        # 创建网络安全配置文件（支持HTTP和HTTPS）
+        mkdir -p android/app/src/main/res/xml
+        cat > android/app/src/main/res/xml/network_security_config.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <network-security-config>
+            <domain-config cleartextTrafficPermitted="true">
+                <domain includeSubdomains="true">music-api.gdstudio.xyz</domain>
+                <domain includeSubdomains="true">localhost</domain>
+                <domain includeSubdomains="true">127.0.0.1</domain>
+                <domain includeSubdomains="true">10.0.2.2</domain>
+            </domain-config>
+            <base-config cleartextTrafficPermitted="true">
+                <trust-anchors>
+                    <certificates src="system"/>
+                    <certificates src="user"/>
+                </trust-anchors>
+            </base-config>
+        </network-security-config>
+        EOF
+        
+        # 添加小米推送相关的字符串资源
+        mkdir -p android/app/src/main/res/values
+        cat >> android/app/src/main/res/values/strings.xml << 'EOF'
+        
+        <!-- 小米推送配置 -->
+        <string name="xiaomi_app_id">placeholder_app_id</string>
+        <string name="xiaomi_app_key">placeholder_app_key</string>
+        EOF
+        
+        # 配置gradle.properties以支持小米手机
+        cat >> android/gradle.properties << 'EOF'
+        
+        # 小米手机优化配置
+        android.useAndroidX=true
+        android.enableJetifier=true
+        android.enableR8.fullMode=false
+        android.enableR8=true
+        
+        # 构建优化
+        org.gradle.daemon=false
+        org.gradle.configureondemand=false
+        org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+        
+        # 小米手机兼容性
+        android.compileSdkVersion=34
+        android.targetSdkVersion=34
+        android.minSdkVersion=24
         EOF
       
     - name: Sync Web Assets
@@ -157,14 +241,40 @@ jobs:
           - 📱 移动端优化
           - 🎨 美观现代的UI
           
-          ### 安装说明
+          ### 小米手机安装说明 📱
+          
+          #### 第一步：开启安装权限
+          1. 进入 **设置** → **隐私保护** → **特殊应用权限** → **安装未知应用**
+          2. 选择你的浏览器或文件管理器，开启"允许安装未知应用"
+          
+          #### 第二步：安装应用
+          1. 下载 APK 文件到手机
+          2. 点击APK文件进行安装
+          3. 如果提示"MIUI优化"，选择"继续安装"
+          
+          #### 第三步：授权管理（重要）
+          安装后请进行以下设置以确保应用正常运行：
+          
+          1. **自启动管理**：设置 → 应用设置 → 授权管理 → 自启动管理 → 开启YanSD Music
+          2. **后台应用限制**：设置 → 应用设置 → 应用管理 → YanSD Music → 省电策略 → 选择"无限制"
+          3. **网络权限**：设置 → 应用设置 → 应用管理 → YanSD Music → 权限 → 确保"访问网络"已开启
+          4. **存储权限**：设置 → 应用设置 → 应用管理 → YanSD Music → 权限 → 开启"存储"权限
+          
+          ### 其他Android手机安装说明 📱
           1. 下载 APK 文件
           2. 在Android设备上开启"允许安装未知来源应用"
           3. 安装并享受音乐！
           
-          ### 技术信息
+          ### 故障排除 🔧
+          - **安装失败**：检查是否开启了"安装未知应用"权限
+          - **网络连接失败**：确保已授予网络访问权限
+          - **应用闪退**：检查后台应用限制和省电策略设置
+          
+          ### 技术信息 ℹ️
           - 构建版本: ${{ github.run_number }}
           - 构建时间: ${{ github.event.head_commit.timestamp }}
           - APK类型: 未签名版本（开发测试用）
+          - 支持系统: Android 7.0+ (API 24+)
+          - 特别优化: 小米MIUI系统
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
