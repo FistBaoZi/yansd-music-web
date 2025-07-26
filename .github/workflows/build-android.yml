@@ -23,7 +23,7 @@ jobs:
       run: |
         rm -f package-lock.json
         npm install
-        npm install @capacitor/core @capacitor/android @capacitor/cli
+        npm install @capacitor/core @capacitor/android @capacitor/cli terser
       
     - name: Build Web App
       run: npm run build
