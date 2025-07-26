@@ -2,7 +2,6 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -19,10 +18,12 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '22'
-        cache: 'npm'
         
-    - name: Install Dependencies
-      run: npm ci
+    - name: Clean and Install Dependencies
+      run: |
+        rm -f package-lock.json
+        npm install
+        npm install @capacitor/core @capacitor/android @capacitor/cli
       
     - name: Build Web App
       run: npm run build
@@ -36,9 +37,6 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       
-    - name: Install Capacitor CLI
-      run: npm install -g @capacitor/cli
-        
     - name: Initialize Capacitor
       run: |
         npx cap init "YanSD Music" "com.yansd.music" --web-dir=dist
@@ -52,70 +50,26 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x android/gradlew
       
-    - name: Build Debug APK (for testing)
-      if: github.event_name == 'pull_request'
-      run: |
-        cd android
-        ./gradlew assembleDebug
-        
     - name: Build Release APK
-      if: github.event_name != 'pull_request'
       run: |
         cd android
-        ./gradlew assembleRelease
+        ./gradlew assembleRelease --no-daemon
         
-    - name: Sign APK (Release only)
-      if: github.event_name != 'pull_request'
-      uses: r0adkll/sign-android-release@v1
-      id: sign_app
-      with:
-        releaseDirectory: android/app/build/outputs/apk/release
-        signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-        alias: ${{ secrets.ALIAS }}
-        keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-        keyPassword: ${{ secrets.KEY_PASSWORD }}
-      env:
-        BUILD_TOOLS_VERSION: "34.0.0"
-      continue-on-error: true
-        
-    - name: Prepare APK for upload
+    - name: Rename APK
       run: |
-        if [ "${{ github.event_name }}" == "pull_request" ]; then
-          cp android/app/build/outputs/apk/debug/app-debug.apk yansd-music-debug-${{ github.run_number }}.apk
-        elif [ "${{ steps.sign_app.outputs.signedReleaseFile }}" != "" ]; then
-          cp ${{ steps.sign_app.outputs.signedReleaseFile }} yansd-music-signed-${{ github.run_number }}.apk
-        else
-          cp android/app/build/outputs/apk/release/app-release-unsigned.apk yansd-music-unsigned-${{ github.run_number }}.apk
-        fi
+        cp android/app/build/outputs/apk/release/app-release-unsigned.apk yansd-music-v${{ github.run_number }}.apk
         
-    - name: Upload Debug APK as Artifact
-      if: github.event_name == 'pull_request'
+    - name: Upload APK as Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: yansd-music-debug-apk
-        path: yansd-music-debug-${{ github.run_number }}.apk
-        
-    - name: Upload Signed APK as Artifact
-      if: github.event_name != 'pull_request' && steps.sign_app.outputs.signedReleaseFile != ''
-      uses: actions/upload-artifact@v4
-      with:
-        name: yansd-music-signed-apk
-        path: yansd-music-signed-${{ github.run_number }}.apk
-        
-    - name: Upload Unsigned APK as Artifact
-      if: github.event_name != 'pull_request' && steps.sign_app.outputs.signedReleaseFile == ''
-      uses: actions/upload-artifact@v4
-      with:
-        name: yansd-music-unsigned-apk
-        path: yansd-music-unsigned-${{ github.run_number }}.apk
+        name: yansd-music-apk
+        path: yansd-music-v${{ github.run_number }}.apk
         
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: |
-          yansd-music-signed-${{ github.run_number }}.apk
-          yansd-music-unsigned-${{ github.run_number }}.apk
+        files: yansd-music-v${{ github.run_number }}.apk
         generate_release_notes: true
         draft: false
         prerelease: false
