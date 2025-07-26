@@ -1,10 +1,23 @@
 name: Build Android APK
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: '发布版本号 (例如: 1.0.0)'
+        required: true
+        default: '1.0.0'
+        type: string
+      release_notes:
+        description: '发布说明 (可选)'
+        required: false
+        default: ''
+        type: string
+      create_release:
+        description: '是否创建GitHub Release'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -23,6 +36,22 @@ jobs:
       with:
         node-version: '22'
         
+    - name: Build Information
+      run: |
+        echo "🔨 构建信息"
+        echo "==============================================="
+        echo "触发方式: ${{ github.event_name }}"
+        if [ "${{ github.event.inputs.version }}" != "" ]; then
+          echo "手动版本号: ${{ github.event.inputs.version }}"
+        fi
+        if [ "${{ github.event.inputs.release_notes }}" != "" ]; then
+          echo "发布说明: ${{ github.event.inputs.release_notes }}"
+        fi
+        echo "创建Release: ${{ github.event.inputs.create_release || 'auto' }}"
+        echo "构建号: ${{ github.run_number }}"
+        echo "Git引用: ${{ github.ref }}"
+        echo "==============================================="
+      
     - name: Clean and Install Dependencies
       run: |
         rm -f package-lock.json
@@ -213,33 +242,49 @@ jobs:
         
     - name: Rename APK
       run: |
-        cp android/app/build/outputs/apk/release/app-release-unsigned.apk yansd-music-v${{ github.run_number }}.apk
+        # 确定版本号：优先使用手动输入，其次使用标签，最后使用构建号
+        if [ "${{ github.event.inputs.version }}" != "" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          VERSION="${{ github.ref_name }}"
+          VERSION=${VERSION#v}  # 移除v前缀
+        else
+          VERSION="build-${{ github.run_number }}"
+        fi
+        
+        echo "使用版本号: $VERSION"
+        cp android/app/build/outputs/apk/release/app-release-unsigned.apk yansd-music-v${VERSION}.apk
+        
+        # 设置环境变量供后续步骤使用
+        echo "APK_VERSION=$VERSION" >> $GITHUB_ENV
+        echo "APK_FILENAME=yansd-music-v${VERSION}.apk" >> $GITHUB_ENV
         
     - name: Upload APK as Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: yansd-music-apk
-        path: yansd-music-v${{ github.run_number }}.apk
+        name: yansd-music-apk-v${{ env.APK_VERSION }}
+        path: ${{ env.APK_FILENAME }}
         
     - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
+      if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
       uses: softprops/action-gh-release@v1
       with:
-        files: yansd-music-v${{ github.run_number }}.apk
-        generate_release_notes: true
+        files: ${{ env.APK_FILENAME }}
+        generate_release_notes: ${{ github.event.inputs.release_notes == '' }}
         draft: false
         prerelease: false
-        name: "YanSD Music ${{ github.ref_name }}"
+        tag_name: ${{ github.event.inputs.version != '' && format('v{0}', github.event.inputs.version) || github.ref_name }}
+        name: "YanSD Music v${{ env.APK_VERSION }}"
         body: |
           ## YanSD Music Android APK
           
-          🎵 **音乐播放器移动端应用**
+          🎵 **音乐播放器移动端应用 v${{ env.APK_VERSION }}**
           
-          ### 功能特性
+          ${{ github.event.inputs.release_notes != '' && github.event.inputs.release_notes || '### 功能特性
           - 🔍 音乐搜索
           - ▶️ 在线播放
           - 📱 移动端优化
-          - 🎨 美观现代的UI
+          - 🎨 美观现代的UI' }}
           
           ### 小米手机安装说明 📱
           
@@ -272,7 +317,7 @@ jobs:
           
           ### 技术信息 ℹ️
           - 构建版本: ${{ github.run_number }}
-          - 构建时间: ${{ github.event.head_commit.timestamp }}
+          - 发布时间: ${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
           - APK类型: 未签名版本（开发测试用）
           - 支持系统: Android 7.0+ (API 24+)
           - 特别优化: 小米MIUI系统
