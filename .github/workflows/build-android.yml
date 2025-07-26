@@ -182,10 +182,9 @@ jobs:
         # 添加小米推送相关的字符串资源
         mkdir -p android/app/src/main/res/values
         
-        # 检查是否存在strings.xml，如果存在则备份并创建新的
-        if [ -f android/app/src/main/res/values/strings.xml ]; then
-          cp android/app/src/main/res/values/strings.xml android/app/src/main/res/values/strings.xml.backup
-        fi
+        # 清理可能存在的备份文件（避免构建错误）
+        rm -f android/app/src/main/res/values/strings.xml.backup
+        rm -f android/app/src/main/res/values/*.backup
         
         # 创建完整的strings.xml文件
         cat > android/app/src/main/res/values/strings.xml << 'EOF'
@@ -207,8 +206,6 @@ jobs:
         echo "# 小米手机优化配置" >> android/gradle.properties
         echo "android.useAndroidX=true" >> android/gradle.properties
         echo "android.enableJetifier=true" >> android/gradle.properties
-        echo "android.enableR8.fullMode=false" >> android/gradle.properties
-        echo "android.enableR8=true" >> android/gradle.properties
         echo "" >> android/gradle.properties
         echo "# 构建优化" >> android/gradle.properties
         echo "org.gradle.daemon=false" >> android/gradle.properties
@@ -259,6 +256,20 @@ jobs:
         else
           echo "❌ network_security_config.xml 格式错误"
         fi
+        
+    - name: Clean Android Resources
+      run: |
+        echo "🧹 清理Android资源文件"
+        
+        # 清理可能存在的备份文件和临时文件
+        find android/app/src/main/res -name "*.backup" -delete 2>/dev/null || true
+        find android/app/src/main/res -name "*.tmp" -delete 2>/dev/null || true
+        find android/app/src/main/res -name "*~" -delete 2>/dev/null || true
+        
+        # 清理可能的重复文件
+        find android/app/src/main/res -name "strings.xml.*" ! -name "strings.xml" -delete 2>/dev/null || true
+        
+        echo "✅ 资源清理完成"
         
     - name: Sync Web Assets
       run: npx cap sync android
