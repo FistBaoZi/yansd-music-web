@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -75,5 +79,26 @@ jobs:
         generate_release_notes: true
         draft: false
         prerelease: false
+        name: "YanSD Music ${{ github.ref_name }}"
+        body: |
+          ## YanSD Music Android APK
+          
+          🎵 **音乐播放器移动端应用**
+          
+          ### 功能特性
+          - 🔍 音乐搜索
+          - ▶️ 在线播放
+          - 📱 移动端优化
+          - 🎨 美观现代的UI
+          
+          ### 安装说明
+          1. 下载 APK 文件
+          2. 在Android设备上开启"允许安装未知来源应用"
+          3. 安装并享受音乐！
+          
+          ### 技术信息
+          - 构建版本: ${{ github.run_number }}
+          - 构建时间: ${{ github.event.head_commit.timestamp }}
+          - APK类型: 未签名版本（开发测试用）
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
