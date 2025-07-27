@@ -110,7 +110,7 @@ jobs:
                 android:networkSecurityConfig="@xml/network_security_config"
                 android:hardwareAccelerated="true"
                 android:largeHeap="true"
-                android:name="com.getcapacitor.CapacitorApplication"
+                # 已移除android:name，避免找不到类导致闪退
                 android:extractNativeLibs="true"
                 tools:targetApi="34">
 
